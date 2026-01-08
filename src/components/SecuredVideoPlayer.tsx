@@ -96,10 +96,12 @@ export default function SecuredVideoPlayer({
   const [isHidden, setIsHidden] = useState(false);
   const [devToolsOpen, setDevToolsOpen] = useState(false);
   const [apiReady, setApiReady] = useState(false);
+  const [thumbnailLoaded, setThumbnailLoaded] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  const thumbnailRef = useRef<HTMLDivElement>(null);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const wasPlayingBeforeHide = useRef(false);
@@ -107,9 +109,37 @@ export default function SecuredVideoPlayer({
   // Extract video ID from URL
   const videoId = getYouTubeId(videoUrl) || "";
 
-  // Get YouTube thumbnail URL (maxresdefault for highest quality)
-  const getThumbnailUrl = useCallback(() => {
-    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+  // Load thumbnail dynamically via JavaScript to hide URL from page source
+  useEffect(() => {
+    if (!videoId || !thumbnailRef.current) return;
+
+    const thumbnailElement = thumbnailRef.current;
+    let objectUrl: string | null = null;
+
+    // Build URL parts separately to avoid appearing as a complete URL in source
+    const host = ['https://', 'img.youtube', '.com'].join('');
+    const path = ['/vi/', videoId, '/maxresdefault.jpg'].join('');
+    const url = host + path;
+
+    // Load as blob to hide the actual URL
+    fetch(url)
+      .then(res => res.blob())
+      .then(blob => {
+        objectUrl = URL.createObjectURL(blob);
+        thumbnailElement.style.backgroundImage = `url(${objectUrl})`;
+        setThumbnailLoaded(true);
+      })
+      .catch(() => {
+        // Fallback with obfuscated URL
+        thumbnailElement.style.backgroundImage = `url(${url})`;
+        setThumbnailLoaded(true);
+      });
+
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
   }, [videoId]);
 
   // Load YouTube IFrame API
@@ -413,27 +443,29 @@ export default function SecuredVideoPlayer({
       {/* Full thumbnail overlay - shown until video plays */}
       {showThumbnail && (
         <div
-          className="absolute inset-0 z-20 cursor-pointer"
+          ref={thumbnailRef}
+          className="absolute inset-0 z-20 cursor-pointer bg-black"
           onClick={togglePlay}
           onContextMenu={handleContextMenu}
           style={{
-            backgroundImage: `url(${getThumbnailUrl()})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
-          {/* Play button */}
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/10 transition-colors">
-            <div className="w-20 h-20 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center shadow-xl hover:scale-105 transform transition-all duration-200">
-              <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+          {/* Play button - only show when thumbnail is loaded */}
+          {thumbnailLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/10 transition-colors">
+              <div className="w-20 h-20 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center shadow-xl hover:scale-105 transform transition-all duration-200">
+                <svg className="w-10 h-10 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
             </div>
-          </div>
+          )}
           {/* Loading spinner on thumbnail */}
-          {!isReady && (
-            <div className="absolute bottom-4 right-4">
-              <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          {(!isReady || !thumbnailLoaded) && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             </div>
           )}
         </div>
