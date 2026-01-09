@@ -19,7 +19,7 @@ export default function Home() {
         </div>
 
         {/* Video Player */}
-        <div className="bg-zinc-800 rounded-xl p-4 shadow-2xl">
+        <div className="bg-zinc-800 rounded-xl p-1 shadow-2xl">
           <SecuredVideoPlayer videoUrl={VIDEO_URL} className="w-full aspect-video" />
         </div>
 
