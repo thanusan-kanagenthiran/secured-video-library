@@ -2,7 +2,7 @@
 
 import SecuredVideoPlayer from "@/components/SecuredVideoPlayer";
 
-const VIDEO_URL = "https://youtu.be/gmsEDydA_-I";
+const VIDEO_URL = "https://youtu.be/SeO5lJm6wjQ";
 
 export default function Home() {
   return (
